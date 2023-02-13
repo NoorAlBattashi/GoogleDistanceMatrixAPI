@@ -1,7 +1,5 @@
 package gmap_distance_matrix;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -10,19 +8,14 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.InputMismatchException;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
+    public static final String Data_FILE_PATH = "input/input.json";
 
-    public static void main(String[] args) throws JsonProcessingException {
+    public static void main(String[] args) throws IOException {
         //get data from user
         System.out.println("welcome!");
         System.out.print("Please enter your pickup point: ");
@@ -37,24 +30,47 @@ public class Main {
         urlBuilder.addQueryParameter("units", "imperial");
         urlBuilder.addQueryParameter("key", getKey());
 
-        //convert url to json string
-        ObjectMapper objectMapper = new ObjectMapper();
-        String json = objectMapper.writeValueAsString(urlBuilder);
-
         OkHttpClient client = new OkHttpClient().newBuilder().build();
 
         Request request = new Request.Builder()
                 .url(urlBuilder.build())
                 .get()
                 .build();
-        try (Response response = client.newCall(request).execute();){
-            storeTheData(json);
-           // System.out.println(response.body().string());
+        Response response = client.newCall(request).execute();
+        Gson gson = new Gson();
+        Type type = new TypeToken<HashMap<String, Object>>() {
+        }.getType();
+        String json = response.body().string();
+        //store the response in file
+        storeTheData(json);
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        //check key validation
+        try {
+            //display the desired data
+            HashMap<String, Object> map = gson.fromJson(json, type);
+
+            List<Object> rows = (List<Object>) map.get("rows");
+            Map<String, Object> rowsMap = (Map<String, Object>) rows.get(0);
+
+            //check if the destination is valid
+            try {
+                List<Object> elements = (List<Object>) rowsMap.get("elements");
+                Map<String, Object> elementsMap = (Map<String, Object>) elements.get(0);
+
+                Map<String, Object> dataMap = (Map<String, Object>) elementsMap.get("duration");
+                String value = (String) dataMap.get("text");
+
+                System.out.println("The estimated travel time: " + value);
+            } catch (NullPointerException e) {
+                System.out.println();
+                System.out.println("Not Found, please try again");
+            }
+        } catch (IndexOutOfBoundsException e) {
+            System.out.println();
+            System.out.println("Not Found, please check your key");
         }
     }
+
     /**
      * This method used to get String input from the user
      *
@@ -72,6 +88,12 @@ public class Main {
             return stringScanner();
         }
     }
+
+    /**
+     * This method used to get the key in a private manner
+     *
+     * @return key
+     */
     public static String getKey() {
         String Key_FILE_PATH = "data/key.json";
         // Read json file
@@ -97,12 +119,16 @@ public class Main {
         }
         return key;
     }
+
+    /**
+     * This method used to store the data in a file
+     *
+     * @param response
+     */
     public static void storeTheData(String response) {
-        String Data_FILE_PATH = "input/input.json";
+
         try (FileWriter fileWriter = new FileWriter(Data_FILE_PATH)) {
-            Gson gson = new GsonBuilder().create();
-            gson.toJson(response, fileWriter);
-            fileWriter.write("\n");
+            fileWriter.write(response);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
