@@ -11,13 +11,14 @@ public class Main {
         String pickup = args[0];
         String dropOff = args[1];
 
-        //check file existence
+        //check file existence and display the results
         boolean fileExist = fileManager.CheckAndCreateFile();
         if (fileExist) {
             fileManager.ReadJSONFile();
         } else if (!fileExist) {
             requestManager.userRequest(pickup, dropOff);
             fileManager.storeTheData(requestManager.getResponse());
+            fileManager.ReadJSONFile();
         }
 
 
